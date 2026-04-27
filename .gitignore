@@ -1,0 +1,4 @@
+node_modules/
+tests/playtest-results.json
+tests/*.log
+.DS_Store

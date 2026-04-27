@@ -1,0 +1,14 @@
+import { chromium } from "playwright";
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+const errors = [];
+page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
+page.on('pageerror', err => errors.push('PAGEERROR: ' + err.message));
+await page.goto("http://localhost:8099", { waitUntil: "networkidle", timeout: 20000 });
+await page.waitForTimeout(3000);
+const ok = await page.evaluate(() => !!document.querySelector('canvas') && !!window.game);
+console.log('OK:', ok);
+console.log('Errors:', errors.length);
+errors.slice(0, 10).forEach(e => console.log(' -', e.slice(0, 200)));
+await browser.close();
+process.exit(errors.length === 0 && ok ? 0 : 1);
