@@ -16,6 +16,7 @@ class GameScene extends Phaser.Scene {
     this.lastInputTime = this.time.now;
     this.lastMilestone = 0;
     this.frameLog = [];
+    this._graceText = null;
 
     // 背景
     if (this.textures.exists('background')) {
@@ -31,8 +32,11 @@ class GameScene extends Phaser.Scene {
     // プレイヤー・影
     this.player = new Player(this, w/2, h/2);
     this.player.setDepth(10);
-    this.shadow = new Shadow(this, w/2 - 80, h/2);
+    // 影は画面端の遠くから出現
+    this.shadow = new Shadow(this, 80, h/2);
     this.shadow.setDepth(8);
+    // 開始から1.5秒はグレース期間（衝突無効）
+    this.graceUntil = this.time.now + 1500;
 
     // UI
     this.scoreText = this.add.text(20, 20, 'SCORE: 0', {
@@ -91,6 +95,7 @@ class GameScene extends Phaser.Scene {
       this.obstacles.forEach(o => { try { o.destroy(); } catch (e) {} });
       this.coins = [];
       this.obstacles = [];
+      this._graceText = null;
       if (window.AUDIO) window.AUDIO.stopBGM();
     });
   }
@@ -206,9 +211,25 @@ class GameScene extends Phaser.Scene {
         window.AUDIO.setBGMTempo(tempo);
       }
 
-      // 衝突判定: 影
-      if (distToShadow < (GAME_CONFIG.PLAYER.RADIUS + GAME_CONFIG.SHADOW.RADIUS) * 0.7) {
+      // 衝突判定: 影（グレース期間中はスキップ）
+      if (time > this.graceUntil &&
+          distToShadow < (GAME_CONFIG.PLAYER.RADIUS + GAME_CONFIG.SHADOW.RADIUS) * 0.7) {
         return this.gameOver({ reason: 'shadow' });
+      }
+      // グレース期間中の表示
+      if (time <= this.graceUntil) {
+        const remaining = Math.ceil((this.graceUntil - time) / 1000);
+        if (!this._graceText || !this._graceText.scene) {
+          this._graceText = this.add.text(GAME_CONFIG.WIDTH/2, GAME_CONFIG.HEIGHT/2 - 80, '', {
+            fontSize: '36px', color: '#FFD700', fontFamily: 'monospace', fontStyle: 'bold',
+            stroke: '#000', strokeThickness: 4
+          }).setOrigin(0.5).setDepth(40);
+        }
+        try { this._graceText.setText(`READY... ${remaining}`); } catch (e) { this._graceText = null; }
+      } else if (this._graceText) {
+        try { this._graceText.destroy(); } catch (e) {}
+        this._graceText = null;
+        this.showFloatText('GO!', GAME_CONFIG.WIDTH/2, GAME_CONFIG.HEIGHT/2 - 80, '#00F0FF');
       }
 
       // 衝突判定: コイン
